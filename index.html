@@ -1,0 +1,1011 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { 
+  X, 
+  Plus, 
+  Image as ImageIcon, 
+  Video, 
+  Info, 
+  Maximize, 
+  Settings, 
+  Trash2, 
+  Play,
+  ChevronRight,
+  ChevronLeft,
+  Globe,
+  Upload,
+  Loader2,
+  Box
+} from 'lucide-react';
+
+// --- TRANSLATIONS & UTILS ---
+const t = {
+  en: {
+    subtitle: "Interactive Technologies",
+    elevate1: "Elevate Your",
+    elevate2: "Event Experience.",
+    desc: "Explore our cutting-edge interactive technologies designed to captivate audiences and create unforgettable moments.",
+    expTech: "Experience Tech",
+    details: "Details",
+    gallery: "Gallery",
+    video: "Video",
+    techDesc: "Description",
+    dimensions: "Technical Dimensions",
+    request: "Request this Technology",
+    noImg: "No images available",
+    noVid: "No video available",
+    admin: "| Secret Admin Dashboard",
+    addTech: "Add New Technology",
+    activeTech: "Active Technologies",
+    noTech: "No technologies listed yet. Add one from the left.",
+    pubTech: "Publish Technology",
+    publishing: "Translating & Publishing...",
+    techName: "Technology Name *",
+    techDescForm: "Description *",
+    techDimForm: "Dimensions / Footprint",
+    techGalForm: "Gallery Image URLs (Comma separated)",
+    techVidForm: "Video URL (MP4)",
+    uploadLogo: "Upload Logo",
+    changeLogo: "Change Logo",
+    upload3DLogo: "Upload 3D Logo (.glb)",
+    change3DLogo: "Change 3D Logo",
+    uploading: "Uploading..."
+  },
+  ar: {
+    subtitle: "التقنيات التفاعلية",
+    elevate1: "ارتقِ",
+    elevate2: "بتجربة فعاليتك.",
+    desc: "استكشف تقنياتنا التفاعلية المتطورة المصممة لجذب الجماهير وخلق لحظات لا تُنسى.",
+    expTech: "تجربة التقنية",
+    details: "التفاصيل",
+    gallery: "المعرض",
+    video: "الفيديو",
+    techDesc: "الوصف",
+    dimensions: "الأبعاد التقنية",
+    request: "اطلب هذه التقنية",
+    noImg: "لا توجد صور متاحة",
+    noVid: "لا يوجد فيديو متاح",
+    admin: "| لوحة تحكم الإدارة السرية",
+    addTech: "إضافة تقنية جديدة",
+    activeTech: "التقنيات النشطة",
+    noTech: "لم يتم إدراج تقنيات بعد. أضف واحدة من القائمة.",
+    pubTech: "نشر التقنية",
+    publishing: "جاري الترجمة والنشر...",
+    techName: "اسم التقنية * (بالإنجليزية)",
+    techDescForm: "الوصف * (بالإنجليزية)",
+    techDimForm: "الأبعاد / المساحة (بالإنجليزية)",
+    techGalForm: "روابط صور المعرض (مفصولة بفواصل)",
+    techVidForm: "رابط الفيديو (MP4)",
+    uploadLogo: "رفع الشعار",
+    changeLogo: "تغيير الشعار",
+    upload3DLogo: "رفع شعار 3D (.glb)",
+    change3DLogo: "تغيير شعار 3D",
+    uploading: "جاري الرفع..."
+  }
+};
+
+const translateText = async (text) => {
+  if (!text) return "";
+  try {
+    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|ar`);
+    const data = await res.json();
+    return data.responseData.translatedText || text;
+  } catch (e) {
+    return text;
+  }
+};
+
+// Safe text extractor to prevent "Objects are not valid as a React child" errors
+const getText = (field, lang) => {
+  if (!field) return "";
+  if (typeof field === 'string') return field;
+  return field[lang] || field.en || "";
+};
+
+// --- MOCK DATA ---
+const initialTechnologies = [
+  {
+    id: 1,
+    title: { en: "Holo-Presence Display", ar: "شاشة الحضور الهولوغرامي" },
+    description: { en: "A state-of-the-art holographic projection system that creates life-size, 3D illusions of people or products. Perfect for high-impact keynotes, remote speaker appearances, and futuristic product launches.", ar: "نظام عرض هولوغرامي متطور يخلق أوهاماً ثلاثية الأبعاد بحجم طبيعي للأشخاص أو المنتجات. مثالي للخطابات الرئيسية ذات التأثير العالي، وظهور المتحدثين عن بعد، وإطلاق المنتجات المستقبلية." },
+    dimensions: { en: "3m x 3m x 2.5m (Footprint)", ar: "3م × 3م × 2.5م (المساحة)" },
+    gallery: [
+      "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=800",
+      "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800"
+    ],
+    video: "https://www.w3schools.com/html/mov_bbb.mp4"
+  },
+  {
+    id: 2,
+    title: { en: "Kinetic Light Swarm", ar: "سرب الضوء الحركي" },
+    description: { en: "A synchronized array of hundreds of LED orbs attached to motorized winches. The swarm moves in perfect harmony to create floating 3D shapes, logos, and mesmerizing waves of light above the audience.", ar: "مصفوفة متزامنة من مئات كرات الإضاءة LED المتصلة برافعات آلية. يتحرك السرب بانسجام تام لخلق أشكال ثلاثية الأبعاد عائمة وشعارات وموجات ضوئية ساحرة فوق الجمهور." },
+    dimensions: { en: "Customizable (Minimum 5m x 5m ceiling space)", ar: "قابل للتخصيص (الحد الأدنى 5م × 5م مساحة السقف)" },
+    gallery: [
+      "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800"
+    ],
+    video: ""
+  },
+  {
+    id: 3,
+    title: { en: "Interactive Floor Projection", ar: "العرض الأرضي التفاعلي" },
+    description: { en: "Transform any standard floor into an interactive playground. High-lumen projectors and infrared tracking cameras detect footsteps, making the floor react with ripples, revealing logos, or triggering sound effects.", ar: "قم بتحويل أي أرضية قياسية إلى ملعب تفاعلي. تكتشف أجهزة العرض عالية السطوع وكاميرات التتبع بالأشعة تحت الحمراء خطى الأقدام، مما يجعل الأرضية تتفاعل مع التموجات، أو تكشف عن الشعارات، أو تطلق تأثيرات صوتية." },
+    dimensions: { en: "Flexible (Standard setup: 4m x 4m)", ar: "مرن (الإعداد القياسي: 4م × 4م)" },
+    gallery: [
+      "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80&w=800"
+    ],
+    video: ""
+  }
+];
+
+// --- FIREBASE SETUP ---
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'macan-app';
+
+// --- THREE.JS BACKGROUND COMPONENT ---
+const ThreeBackground = ({ glbUrl }) => {
+  const mountRef = useRef(null);
+  const sceneRef = useRef(null);
+  const logoMeshRef = useRef(null);
+  const [threeReady, setThreeReady] = useState(false);
+
+  useEffect(() => {
+    let scene, camera, renderer, particles, animationId;
+
+    const initThree = () => {
+      if (!window.THREE) return;
+      
+      const THREE = window.THREE;
+      
+      // Setup
+      scene = new THREE.Scene();
+      sceneRef.current = scene;
+      
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+      
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      if (mountRef.current) {
+        mountRef.current.innerHTML = '';
+        mountRef.current.appendChild(renderer.domElement);
+      }
+
+      // Lights (crucial for 3D GLB models)
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+      scene.add(ambientLight);
+
+      const dirLight1 = new THREE.DirectionalLight(0x00ffff, 1.2); // Cyan light
+      dirLight1.position.set(5, 5, 5);
+      scene.add(dirLight1);
+
+      const dirLight2 = new THREE.DirectionalLight(0xff00ff, 1.2); // Purple light
+      dirLight2.position.set(-5, -5, 5);
+      scene.add(dirLight2);
+
+      // Particles
+      const particlesGeometry = new THREE.BufferGeometry();
+      const particlesCount = 1500;
+      const posArray = new Float32Array(particlesCount * 3);
+      const colorsArray = new Float32Array(particlesCount * 3);
+
+      for(let i = 0; i < particlesCount * 3; i++) {
+        // Spread particles
+        posArray[i] = (Math.random() - 0.5) * 15;
+        
+        // Macan brand colors (cyan/purple mix)
+        if (i % 3 === 0) colorsArray[i] = 0.2; // R
+        if (i % 3 === 1) colorsArray[i] = 0.8; // G
+        if (i % 3 === 2) colorsArray[i] = 1.0; // B
+      }
+
+      particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+      particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colorsArray, 3));
+
+      const material = new THREE.PointsMaterial({
+        size: 0.02,
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.8
+      });
+
+      particles = new THREE.Points(particlesGeometry, material);
+      scene.add(particles);
+      camera.position.z = 5;
+
+      // Mouse interaction
+      let mouseX = 0;
+      let mouseY = 0;
+      let targetX = 0;
+      let targetY = 0;
+
+      const windowHalfX = window.innerWidth / 2;
+      const windowHalfY = window.innerHeight / 2;
+
+      const onDocumentMouseMove = (event) => {
+        mouseX = (event.clientX - windowHalfX);
+        mouseY = (event.clientY - windowHalfY);
+      };
+
+      document.addEventListener('mousemove', onDocumentMouseMove);
+
+      // Animation Loop
+      const animate = () => {
+        targetX = mouseX * 0.001;
+        targetY = mouseY * 0.001;
+
+        if (particles) {
+          particles.rotation.y += 0.002;
+          particles.rotation.x += 0.001;
+          
+          // Smooth mouse follow
+          particles.rotation.y += 0.05 * (targetX - particles.rotation.y);
+          particles.rotation.x += 0.05 * (targetY - particles.rotation.x);
+        }
+
+        // Rotate GLB logo if exists
+        if (logoMeshRef.current) {
+          logoMeshRef.current.rotation.y += 0.008; // Continuous slow rotation
+          logoMeshRef.current.rotation.x += 0.004;
+          
+          // Add slight mouse interactivity to the 3D logo
+          logoMeshRef.current.rotation.y += 0.03 * (targetX * 2 - logoMeshRef.current.rotation.y);
+          logoMeshRef.current.rotation.x += 0.03 * (targetY * 2 - logoMeshRef.current.rotation.x);
+        }
+
+        renderer.render(scene, camera);
+        animationId = requestAnimationFrame(animate);
+      };
+
+      animate();
+      setThreeReady(true); // Signal that Three.js is fully loaded and scene is active
+
+      // Resize handler
+      const handleResize = () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      };
+      window.addEventListener('resize', handleResize);
+
+      return () => {
+        document.removeEventListener('mousemove', onDocumentMouseMove);
+        window.removeEventListener('resize', handleResize);
+        cancelAnimationFrame(animationId);
+        renderer.dispose();
+      };
+    };
+
+    const loadScripts = () => {
+      if (window.THREE && window.THREE.GLTFLoader) {
+        initThree();
+        return;
+      }
+      const scriptThree = document.createElement('script');
+      scriptThree.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+      scriptThree.onload = () => {
+        const scriptGLTF = document.createElement('script');
+        scriptGLTF.src = "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js";
+        scriptGLTF.onload = initThree;
+        document.body.appendChild(scriptGLTF);
+      };
+      document.body.appendChild(scriptThree);
+    };
+
+    loadScripts();
+  }, []);
+
+  // Handle GLB upload/change
+  useEffect(() => {
+    if (!glbUrl || !threeReady || !sceneRef.current || !window.THREE || !window.THREE.GLTFLoader) return;
+
+    const THREE = window.THREE;
+    const loader = new THREE.GLTFLoader();
+
+    loader.load(glbUrl, (gltf) => {
+      // Remove old logo if it exists
+      if (logoMeshRef.current) {
+        sceneRef.current.remove(logoMeshRef.current);
+      }
+      
+      const model = gltf.scene;
+      
+      // Auto-center the loaded model
+      const box = new THREE.Box3().setFromObject(model);
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.sub(center); 
+
+      // Auto-scale the loaded model to fit beautifully within the scene (roughly 3 units wide)
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 3 / maxDim; 
+      
+      // Wrap in a group to act as the pivot point
+      const group = new THREE.Group();
+      model.scale.set(scale, scale, scale);
+      group.add(model);
+      
+      sceneRef.current.add(group);
+      logoMeshRef.current = group;
+    });
+
+    return () => {
+      // Cleanup on dismount or url change
+      if (logoMeshRef.current && sceneRef.current) {
+        sceneRef.current.remove(logoMeshRef.current);
+        logoMeshRef.current = null;
+      }
+    };
+  }, [glbUrl, threeReady]);
+
+  return <div ref={mountRef} className="fixed inset-0 z-0 pointer-events-none bg-gradient-to-br from-gray-900 to-black" />;
+};
+
+// --- MAIN APP COMPONENT ---
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [technologies, setTechnologies] = useState(initialTechnologies);
+  const [selectedTech, setSelectedTech] = useState(null);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
+  const [lang, setLang] = useState('en');
+  const [logoUrl, setLogoUrl] = useState(null);
+  const [glbLogoUrl, setGlbLogoUrl] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  const isAr = lang === 'ar';
+  
+  // --- FIREBASE AUTH & DATA SYNC ---
+  useEffect(() => {
+    const initAuth = async () => {
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        await signInWithCustomToken(auth, __initial_auth_token);
+      } else {
+        await signInAnonymously(auth);
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const configRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main');
+
+    const unsubscribe = onSnapshot(configRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.technologies) setTechnologies(data.technologies);
+        if (data.logoUrl !== undefined) setLogoUrl(data.logoUrl);
+        if (data.glbLogoUrl !== undefined) setGlbLogoUrl(data.glbLogoUrl);
+      } else {
+        // Initialize doc with mock data if it doesn't exist yet
+        setDoc(configRef, {
+          technologies: initialTechnologies,
+          logoUrl: null,
+          glbLogoUrl: null
+        });
+      }
+    }, (error) => {
+      console.error("Firestore sync error:", error);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const updateConfig = async (updates) => {
+    if (!user) return;
+    const configRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main');
+    await setDoc(configRef, updates, { merge: true });
+  };
+
+  // Secret Dashboard Trigger logic (5 clicks within 2 seconds)
+  useEffect(() => {
+    if (clickCount > 0) {
+      const timer = setTimeout(() => setClickCount(0), 2000);
+      if (clickCount >= 5) {
+        setIsDashboardOpen(true);
+        setClickCount(0);
+      }
+      return () => clearTimeout(timer);
+    }
+  }, [clickCount]);
+
+  const handleLogoClick = () => {
+    setClickCount(prev => prev + 1);
+  };
+
+  const handleAddTech = async (newTech) => {
+    const updatedTechs = [{ ...newTech, id: Date.now() }, ...technologies];
+    setTechnologies(updatedTechs);
+    await updateConfig({ technologies: updatedTechs });
+    setIsDashboardOpen(false);
+  };
+
+  const handleDeleteTech = async (id) => {
+    const updatedTechs = technologies.filter(t => t.id !== id);
+    setTechnologies(updatedTechs);
+    await updateConfig({ technologies: updatedTechs });
+  };
+
+  const handleFileUpload = async (e, type) => {
+    const file = e.target.files[0];
+    if (!file || !user) return;
+    
+    setIsUploading(true);
+    try {
+      const fileRef = ref(storage, `artifacts/${appId}/uploads/${Date.now()}_${file.name}`);
+      await uploadBytes(fileRef, file);
+      const downloadUrl = await getDownloadURL(fileRef);
+      
+      if (type === 'logo') {
+        await updateConfig({ logoUrl: downloadUrl });
+      } else if (type === 'glb') {
+        await updateConfig({ glbLogoUrl: downloadUrl });
+      }
+    } catch (err) {
+      console.error("Upload failed:", err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleLogoUpload = (e) => handleFileUpload(e, 'logo');
+  const handleGlbUpload = (e) => handleFileUpload(e, 'glb');
+
+  const toggleLang = () => {
+    setLang(prev => prev === 'en' ? 'ar' : 'en');
+  };
+
+  return (
+    <div className="min-h-screen text-white font-sans overflow-x-hidden selection:bg-cyan-500/30" style={{ fontFamily: isAr ? "'Tajawal', sans-serif" : "'Roboto', sans-serif" }} dir={isAr ? "rtl" : "ltr"}>
+      <style dangerouslySetInnerHTML={{__html: `@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=Tajawal:wght@300;400;500;700;800;900&display=swap');`}} />
+      <ThreeBackground glbUrl={glbLogoUrl} />
+      
+      {/* HEADER */}
+      <header className="fixed top-0 w-full z-40 p-6 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
+        <div className="flex items-center gap-4">
+          {logoUrl && (
+            <img src={logoUrl} alt="Logo" className="h-10 object-contain" />
+          )}
+
+          <div 
+            onClick={handleLogoClick}
+            className="cursor-pointer select-none group flex items-center gap-3"
+          >
+            {!logoUrl && (
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-[0_0_15px_rgba(34,211,238,0.4)] group-hover:shadow-[0_0_25px_rgba(34,211,238,0.6)] transition-all">
+                <span className="font-bold text-xl tracking-tighter">M</span>
+              </div>
+            )}
+            <h1 className="text-3xl font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+              MACAN
+            </h1>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6">
+          <p className="hidden md:block text-sm text-cyan-400 tracking-widest uppercase font-semibold">
+            {t[lang].subtitle}
+          </p>
+          <button 
+            onClick={toggleLang}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 transition-colors text-sm font-medium"
+          >
+            <Globe className="w-4 h-4" />
+            {lang === 'en' ? 'العربية' : 'English'}
+          </button>
+        </div>
+      </header>
+
+      {/* MAIN CONTENT - PRESENTATION VIEW */}
+      <main className="relative z-10 pt-32 pb-20 px-6 md:px-12 max-w-7xl mx-auto min-h-screen flex flex-col justify-center">
+        <div className="mb-12">
+          <h2 className="text-4xl md:text-6xl font-light mb-4 leading-tight">
+            {t[lang].elevate1} <br />
+            <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+              {t[lang].elevate2}
+            </span>
+          </h2>
+          <p className="text-gray-400 max-w-xl text-lg">
+            {t[lang].desc}
+          </p>
+        </div>
+
+        {/* TECH GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {technologies.map((tech) => (
+            <div 
+              key={tech.id}
+              onClick={() => setSelectedTech(tech)}
+              className="group cursor-pointer relative rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-md hover:bg-white/10 hover:border-cyan-500/50 transition-all duration-500 transform hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(34,211,238,0.15)]"
+            >
+              <div className="h-48 overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
+                {tech.gallery && tech.gallery[0] ? (
+                  <img 
+                    src={tech.gallery[0]} 
+                    alt={getText(tech.title, lang)} 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=800'; }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                    <ImageIcon className="w-12 h-12 text-gray-600" />
+                  </div>
+                )}
+                
+                {tech.video && (
+                  <div className={`absolute top-4 ${isAr ? 'left-4' : 'right-4'} z-20 bg-black/50 backdrop-blur-sm p-2 rounded-full`}>
+                    <Play className="w-4 h-4 text-cyan-400" />
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-6 relative z-20">
+                <h3 className="text-xl font-bold mb-2 group-hover:text-cyan-400 transition-colors">{getText(tech.title, lang)}</h3>
+                <p className="text-gray-400 text-sm line-clamp-2">{getText(tech.description, lang)}</p>
+                
+                <div className={`mt-4 flex items-center text-cyan-400 text-sm font-semibold gap-1 opacity-0 group-hover:opacity-100 transition-opacity transform ${isAr ? 'translate-x-[10px]' : 'translate-x-[-10px]'} group-hover:translate-x-0 duration-300`}>
+                  {t[lang].expTech} {isAr ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </main>
+
+      {/* POPUP MODAL (Viewer) */}
+      {selectedTech && (
+        <TechModal 
+          tech={selectedTech} 
+          onClose={() => setSelectedTech(null)}
+          lang={lang}
+          isAr={isAr}
+          t={t}
+        />
+      )}
+
+      {/* SECRET DASHBOARD */}
+      {isDashboardOpen && (
+        <Dashboard 
+          technologies={technologies}
+          onClose={() => setIsDashboardOpen(false)}
+          onAdd={handleAddTech}
+          onDelete={handleDeleteTech}
+          logoUrl={logoUrl}
+          onLogoUpload={handleLogoUpload}
+          glbUrl={glbLogoUrl}
+          onGlbUpload={handleGlbUpload}
+          lang={lang}
+          isAr={isAr}
+          t={t}
+          isUploading={isUploading}
+        />
+      )}
+    </div>
+  );
+}
+
+// --- POPUP MODAL COMPONENT ---
+const TechModal = ({ tech, onClose, lang, isAr, t }) => {
+  const [activeTab, setActiveTab] = useState('info'); // info, gallery, video
+  const [currentImageIdx, setCurrentImageIdx] = useState(0);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  // Prevent scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, []);
+
+  const nextImage = () => {
+    if (tech.gallery) setCurrentImageIdx((prev) => (prev + 1) % tech.gallery.length);
+  };
+
+  const prevImage = () => {
+    if (tech.gallery) setCurrentImageIdx((prev) => (prev - 1 + tech.gallery.length) % tech.gallery.length);
+  };
+
+  const handleTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const minSwipeDistance = 50;
+
+    if (distance > minSwipeDistance) {
+      // Swipe Left
+      isAr ? prevImage() : nextImage();
+    } else if (distance < -minSwipeDistance) {
+      // Swipe Right
+      isAr ? nextImage() : prevImage();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300" dir={isAr ? "rtl" : "ltr"}>
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-lg" onClick={onClose} />
+      
+      <div className="relative w-full max-w-4xl md:min-h-[500px] max-h-[90vh] bg-gray-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row transform scale-100 transition-all">
+        
+        {/* Close Button */}
+        <button 
+          onClick={onClose}
+          className={`absolute top-4 ${isAr ? 'left-4' : 'right-4'} z-50 p-2 bg-black/50 hover:bg-red-500/80 rounded-full backdrop-blur-md transition-colors`}
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Media Section (Left) */}
+        <div className="w-full md:w-1/2 h-64 md:h-auto bg-black relative flex flex-col group">
+          {activeTab === 'info' ? (
+            <div className="relative w-full h-full flex-1">
+              {tech.gallery && tech.gallery.length > 0 ? (
+                <img 
+                  src={tech.gallery[0]} 
+                  alt={`${getText(tech.title, lang)} - Cover`}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=800'; }}
+                />
+              ) : (
+                <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-gray-600">
+                  <ImageIcon className="w-16 h-16 mb-2 opacity-50" />
+                  <p>{t[lang].noImg}</p>
+                </div>
+              )}
+            </div>
+          ) : activeTab === 'gallery' ? (
+            <div 
+              className="relative w-full h-full flex-1"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
+              {tech.gallery && tech.gallery.length > 0 ? (
+                <>
+                  <img 
+                    src={tech.gallery[currentImageIdx]} 
+                    alt={`${getText(tech.title, lang)} - ${currentImageIdx + 1}`}
+                    className="absolute inset-0 w-full h-full object-cover select-none"
+                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=800'; }}
+                  />
+                  {tech.gallery.length > 1 && (
+                    <>
+                      {/* Navigation Arrows */}
+                      <button 
+                        onClick={prevImage}
+                        className={`absolute top-1/2 -translate-y-1/2 ${isAr ? 'right-4' : 'left-4'} p-2 bg-black/40 hover:bg-black/70 text-white rounded-full backdrop-blur-md transition-all opacity-0 md:group-hover:opacity-100 z-20`}
+                      >
+                        {isAr ? <ChevronRight className="w-6 h-6" /> : <ChevronLeft className="w-6 h-6" />}
+                      </button>
+                      <button 
+                        onClick={nextImage}
+                        className={`absolute top-1/2 -translate-y-1/2 ${isAr ? 'left-4' : 'right-4'} p-2 bg-black/40 hover:bg-black/70 text-white rounded-full backdrop-blur-md transition-all opacity-0 md:group-hover:opacity-100 z-20`}
+                      >
+                        {isAr ? <ChevronLeft className="w-6 h-6" /> : <ChevronRight className="w-6 h-6" />}
+                      </button>
+
+                      {/* Dots */}
+                      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
+                        {tech.gallery.map((_, idx) => (
+                          <button 
+                            key={idx}
+                            onClick={() => setCurrentImageIdx(idx)}
+                            className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIdx ? 'bg-cyan-400 w-6' : 'bg-white/50 hover:bg-white'}`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-gray-600">
+                  <ImageIcon className="w-16 h-16 mb-2 opacity-50" />
+                  <p>{t[lang].noImg}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="relative w-full h-full flex-1 bg-black flex items-center justify-center">
+              {tech.video ? (
+                <video 
+                  controls 
+                  autoPlay 
+                  className="absolute inset-0 w-full h-full object-contain"
+                  src={tech.video}
+                >
+                  Your browser does not support the video tag.
+                </video>
+              ) : (
+                <div className="absolute inset-0 w-full h-full text-gray-600 flex flex-col items-center justify-center">
+                  <Video className="w-16 h-16 mb-2 opacity-50" />
+                  <p>{t[lang].noVid}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Content Section (Right) */}
+        <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col overflow-y-auto custom-scrollbar">
+          <div className="flex gap-2 mb-6 border-b border-white/10 pb-4">
+            <button 
+              onClick={() => setActiveTab('info')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === 'info' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+            >
+              <Info className="w-4 h-4" /> {t[lang].details}
+            </button>
+            <button 
+              onClick={() => setActiveTab('gallery')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === 'gallery' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+            >
+              <ImageIcon className="w-4 h-4" /> {t[lang].gallery}
+            </button>
+            <button 
+              onClick={() => setActiveTab('video')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === 'video' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+            >
+              <Video className="w-4 h-4" /> {t[lang].video}
+            </button>
+          </div>
+
+          <h2 className="text-3xl font-bold mb-4">{getText(tech.title, lang)}</h2>
+          
+          <div className="space-y-6">
+            <div>
+              <h4 className="text-sm font-semibold text-cyan-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <Info className="w-4 h-4" /> {t[lang].techDesc}
+              </h4>
+              <p className="text-gray-300 leading-relaxed text-sm md:text-base">
+                {getText(tech.description, lang)}
+              </p>
+            </div>
+
+            {getText(tech.dimensions, lang) && (
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+                  <Maximize className="w-4 h-4" /> {t[lang].dimensions}
+                </h4>
+                <p className="text-white font-medium">{getText(tech.dimensions, lang)}</p>
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-auto pt-8">
+            <a 
+              href={`mailto:exp@macan.om?subject=Request for ${encodeURIComponent(getText(tech.title, 'en'))}`}
+              className="block text-center w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-cyan-500/25 transition-all transform hover:scale-[1.02] active:scale-95"
+            >
+              {t[lang].request}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- SECRET DASHBOARD COMPONENT ---
+const Dashboard = ({ technologies, onClose, onAdd, onDelete, logoUrl, onLogoUpload, glbUrl, onGlbUpload, lang, isAr, t, isUploading }) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    dimensions: '',
+    galleryInput: '', // comma separated URLs
+    video: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.title || !formData.description) return;
+
+    setIsSubmitting(true);
+
+    const titleAr = await translateText(formData.title);
+    const descAr = await translateText(formData.description);
+    const dimAr = formData.dimensions ? await translateText(formData.dimensions) : "";
+
+    const newTech = {
+      title: { en: formData.title, ar: titleAr },
+      description: { en: formData.description, ar: descAr },
+      dimensions: { en: formData.dimensions, ar: dimAr },
+      gallery: formData.galleryInput.split(',').map(url => url.trim()).filter(url => url !== ''),
+      video: formData.video
+    };
+
+    onAdd(newTech);
+    setIsSubmitting(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in" dir={isAr ? "rtl" : "ltr"}>
+      <div className="w-full max-w-5xl h-[85vh] bg-gray-900 border border-cyan-500/30 rounded-2xl shadow-[0_0_50px_rgba(34,211,238,0.1)] flex flex-col overflow-hidden relative">
+        
+        {/* Dashboard Header */}
+        <div className="flex justify-between items-center p-6 border-b border-white/10 bg-black/50">
+          <div className="flex items-center gap-3">
+            <Settings className="w-6 h-6 text-cyan-400 animate-spin-slow" />
+            <h2 className="text-2xl font-bold tracking-wide">MACAN <span className="font-light text-gray-400">{t[lang].admin}</span></h2>
+          </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            <label className={`cursor-pointer flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors text-sm font-medium text-gray-300 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo" className="w-5 h-5 object-contain rounded" />
+              ) : (
+                <Upload className="w-4 h-4 text-cyan-400" />
+              )}
+              {isUploading ? t[lang].uploading : (logoUrl ? t[lang].changeLogo : t[lang].uploadLogo)}
+              <input type="file" accept="image/*" className="hidden" onChange={onLogoUpload} disabled={isUploading} />
+            </label>
+            <label className={`cursor-pointer flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors text-sm font-medium text-gray-300 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+              <Box className="w-4 h-4 text-cyan-400" />
+              {isUploading ? t[lang].uploading : (glbUrl ? t[lang].change3DLogo : t[lang].upload3DLogo)}
+              <input type="file" accept=".glb" className="hidden" onChange={onGlbUpload} disabled={isUploading} />
+            </label>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors ml-2">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+          {/* Add Form */}
+          <div className={`w-full md:w-1/2 p-6 overflow-y-auto custom-scrollbar ${isAr ? 'border-l' : 'border-r'} border-white/10`}>
+            <h3 className="text-lg font-semibold mb-6 flex items-center gap-2 text-cyan-400">
+              <Plus className="w-5 h-5" /> {t[lang].addTech}
+            </h3>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">{t[lang].techName}</label>
+                <input 
+                  type="text" 
+                  required
+                  className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                  placeholder="e.g. AR Mirror"
+                  value={formData.title}
+                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">{t[lang].techDescForm}</label>
+                <textarea 
+                  required
+                  rows="4"
+                  className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyan-500 transition-colors resize-none"
+                  placeholder="Describe the gimmick..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">{t[lang].techDimForm}</label>
+                <input 
+                  type="text" 
+                  className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                  placeholder="e.g. 2m x 2m x 2m"
+                  value={formData.dimensions}
+                  onChange={(e) => setFormData({...formData, dimensions: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">{t[lang].techGalForm}</label>
+                <textarea 
+                  rows="2"
+                  className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyan-500 transition-colors resize-none text-xs"
+                  placeholder="https://image1.jpg, https://image2.jpg"
+                  value={formData.galleryInput}
+                  onChange={(e) => setFormData({...formData, galleryInput: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">{t[lang].techVidForm}</label>
+                <input 
+                  type="url" 
+                  className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                  placeholder="https://example.com/video.mp4"
+                  value={formData.video}
+                  onChange={(e) => setFormData({...formData, video: e.target.value})}
+                />
+              </div>
+
+              <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full mt-4 flex items-center justify-center gap-2 bg-cyan-500/20 border border-cyan-500/50 hover:bg-cyan-500 hover:text-black text-cyan-400 font-bold py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" /> {t[lang].publishing}</> : t[lang].pubTech}
+              </button>
+            </form>
+          </div>
+
+          {/* Manage Existing */}
+          <div className="w-full md:w-1/2 bg-black/30 p-6 overflow-y-auto custom-scrollbar">
+            <h3 className="text-lg font-semibold mb-6 text-gray-300">{t[lang].activeTech} ({technologies.length})</h3>
+            
+            <div className="space-y-3">
+              {technologies.map(tech => (
+                <div key={tech.id} className="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-xl hover:border-white/20 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-gray-800 overflow-hidden flex-shrink-0">
+                      {tech.gallery && tech.gallery[0] ? (
+                         <img src={tech.gallery[0]} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageIcon className="w-full h-full p-3 text-gray-600" />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-white truncate max-w-[150px] sm:max-w-[200px]">{getText(tech.title, lang)}</h4>
+                      <p className="text-xs text-gray-500 truncate max-w-[150px] sm:max-w-[200px]">{getText(tech.description, lang)}</p>
+                    </div>
+                  </div>
+                  
+                  <button 
+                    onClick={() => onDelete(tech.id)}
+                    className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+              ))}
+              
+              {technologies.length === 0 && (
+                <div className="text-center text-gray-500 py-10 border border-dashed border-gray-700 rounded-xl">
+                  {t[lang].noTech}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Global styles for custom scrollbar hidden in normal views but active in modals */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(34, 211, 238, 0.3);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(34, 211, 238, 0.6);
+        }
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 8s linear infinite;
+        }
+      `}} />
+    </div>
+  );
+};
