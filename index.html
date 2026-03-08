@@ -87,6 +87,7 @@ const t = {
   }
 };
 
+// --- AUTO TRANSLATION FUNCTION ---
 const translateText = async (text) => {
   if (!text) return "";
   try {
@@ -98,7 +99,7 @@ const translateText = async (text) => {
   }
 };
 
-// Safe text extractor to prevent "Objects are not valid as a React child" errors
+// Safe text extractor to prevent React errors
 const getText = (field, lang) => {
   if (!field) return "";
   if (typeof field === 'string') return field;
@@ -163,7 +164,7 @@ const ThreeBackground = ({ glbUrl }) => {
       
       const THREE = window.THREE;
       
-      // Setup
+      // Setup scene
       scene = new THREE.Scene();
       sceneRef.current = scene;
       
@@ -177,15 +178,15 @@ const ThreeBackground = ({ glbUrl }) => {
         mountRef.current.appendChild(renderer.domElement);
       }
 
-      // Lights (crucial for 3D GLB models)
+      // 3D Model Lighting
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
       scene.add(ambientLight);
 
-      const dirLight1 = new THREE.DirectionalLight(0x00ffff, 1.2); // Cyan light
+      const dirLight1 = new THREE.DirectionalLight(0x00ffff, 1.2);
       dirLight1.position.set(5, 5, 5);
       scene.add(dirLight1);
 
-      const dirLight2 = new THREE.DirectionalLight(0xff00ff, 1.2); // Purple light
+      const dirLight2 = new THREE.DirectionalLight(0xff00ff, 1.2);
       dirLight2.position.set(-5, -5, 5);
       scene.add(dirLight2);
 
@@ -196,13 +197,11 @@ const ThreeBackground = ({ glbUrl }) => {
       const colorsArray = new Float32Array(particlesCount * 3);
 
       for(let i = 0; i < particlesCount * 3; i++) {
-        // Spread particles
         posArray[i] = (Math.random() - 0.5) * 15;
         
-        // Macan brand colors (cyan/purple mix)
-        if (i % 3 === 0) colorsArray[i] = 0.2; // R
-        if (i % 3 === 1) colorsArray[i] = 0.8; // G
-        if (i % 3 === 2) colorsArray[i] = 1.0; // B
+        if (i % 3 === 0) colorsArray[i] = 0.2;
+        if (i % 3 === 1) colorsArray[i] = 0.8;
+        if (i % 3 === 2) colorsArray[i] = 1.0;
       }
 
       particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
@@ -236,7 +235,7 @@ const ThreeBackground = ({ glbUrl }) => {
 
       document.addEventListener('mousemove', onDocumentMouseMove);
 
-      // Animation Loop
+      // Animation loop
       const animate = () => {
         targetX = mouseX * 0.001;
         targetY = mouseY * 0.001;
@@ -245,17 +244,14 @@ const ThreeBackground = ({ glbUrl }) => {
           particles.rotation.y += 0.002;
           particles.rotation.x += 0.001;
           
-          // Smooth mouse follow
           particles.rotation.y += 0.05 * (targetX - particles.rotation.y);
           particles.rotation.x += 0.05 * (targetY - particles.rotation.x);
         }
 
-        // Rotate GLB logo if exists
         if (logoMeshRef.current) {
-          logoMeshRef.current.rotation.y += 0.008; // Continuous slow rotation
+          logoMeshRef.current.rotation.y += 0.008;
           logoMeshRef.current.rotation.x += 0.004;
           
-          // Add slight mouse interactivity to the 3D logo
           logoMeshRef.current.rotation.y += 0.03 * (targetX * 2 - logoMeshRef.current.rotation.y);
           logoMeshRef.current.rotation.x += 0.03 * (targetY * 2 - logoMeshRef.current.rotation.x);
         }
@@ -265,9 +261,8 @@ const ThreeBackground = ({ glbUrl }) => {
       };
 
       animate();
-      setThreeReady(true); // Signal that Three.js is fully loaded and scene is active
+      setThreeReady(true);
 
-      // Resize handler
       const handleResize = () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
@@ -302,7 +297,7 @@ const ThreeBackground = ({ glbUrl }) => {
     loadScripts();
   }, []);
 
-  // Handle GLB upload/change
+  // Load 3D Logo
   useEffect(() => {
     if (!glbUrl || !threeReady || !sceneRef.current || !window.THREE || !window.THREE.GLTFLoader) return;
 
@@ -310,24 +305,19 @@ const ThreeBackground = ({ glbUrl }) => {
     const loader = new THREE.GLTFLoader();
 
     loader.load(glbUrl, (gltf) => {
-      // Remove old logo if it exists
       if (logoMeshRef.current) {
         sceneRef.current.remove(logoMeshRef.current);
       }
       
       const model = gltf.scene;
-      
-      // Auto-center the loaded model
       const box = new THREE.Box3().setFromObject(model);
       const center = box.getCenter(new THREE.Vector3());
       model.position.sub(center); 
 
-      // Auto-scale the loaded model to fit beautifully within the scene (roughly 3 units wide)
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
       const scale = 3 / maxDim; 
       
-      // Wrap in a group to act as the pivot point
       const group = new THREE.Group();
       model.scale.set(scale, scale, scale);
       group.add(model);
@@ -337,7 +327,6 @@ const ThreeBackground = ({ glbUrl }) => {
     });
 
     return () => {
-      // Cleanup on dismount or url change
       if (logoMeshRef.current && sceneRef.current) {
         sceneRef.current.remove(logoMeshRef.current);
         logoMeshRef.current = null;
@@ -348,7 +337,7 @@ const ThreeBackground = ({ glbUrl }) => {
   return <div ref={mountRef} className="fixed inset-0 z-0 pointer-events-none bg-gradient-to-br from-gray-900 to-black" />;
 };
 
-// --- MAIN APP COMPONENT ---
+// --- MAIN COMPONENT ---
 export default function App() {
   const [user, setUser] = useState(null);
   const [technologies, setTechnologies] = useState(initialTechnologies);
@@ -362,7 +351,7 @@ export default function App() {
   
   const isAr = lang === 'ar';
   
-  // --- FIREBASE AUTH & DATA SYNC ---
+  // --- Firebase Auth & Data Sync ---
   useEffect(() => {
     const initAuth = async () => {
       if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -388,7 +377,6 @@ export default function App() {
         if (data.logoUrl !== undefined) setLogoUrl(data.logoUrl);
         if (data.glbLogoUrl !== undefined) setGlbLogoUrl(data.glbLogoUrl);
       } else {
-        // Initialize doc with mock data if it doesn't exist yet
         setDoc(configRef, {
           technologies: initialTechnologies,
           logoUrl: null,
@@ -408,7 +396,7 @@ export default function App() {
     await setDoc(configRef, updates, { merge: true });
   };
 
-  // Secret Dashboard Trigger logic (5 clicks within 2 seconds)
+  // Secret Dashboard Trigger
   useEffect(() => {
     if (clickCount > 0) {
       const timer = setTimeout(() => setClickCount(0), 2000);
@@ -471,7 +459,7 @@ export default function App() {
       <style dangerouslySetInnerHTML={{__html: `@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=Tajawal:wght@300;400;500;700;800;900&display=swap');`}} />
       <ThreeBackground glbUrl={glbLogoUrl} />
       
-      {/* HEADER */}
+      {/* Header */}
       <header className="fixed top-0 w-full z-40 p-6 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
         <div className="flex items-center gap-4">
           {logoUrl && (
@@ -507,7 +495,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* MAIN CONTENT - PRESENTATION VIEW */}
+      {/* Main Content */}
       <main className="relative z-10 pt-32 pb-20 px-6 md:px-12 max-w-7xl mx-auto min-h-screen flex flex-col justify-center">
         <div className="mb-12">
           <h2 className="text-4xl md:text-6xl font-light mb-4 leading-tight">
@@ -521,7 +509,7 @@ export default function App() {
           </p>
         </div>
 
-        {/* TECH GRID */}
+        {/* Tech Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {technologies.map((tech) => (
             <div 
@@ -564,7 +552,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* POPUP MODAL (Viewer) */}
+      {/* Tech Modal */}
       {selectedTech && (
         <TechModal 
           tech={selectedTech} 
@@ -575,7 +563,7 @@ export default function App() {
         />
       )}
 
-      {/* SECRET DASHBOARD */}
+      {/* Secret Dashboard */}
       {isDashboardOpen && (
         <Dashboard 
           technologies={technologies}
@@ -603,7 +591,6 @@ const TechModal = ({ tech, onClose, lang, isAr, t }) => {
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
 
-  // Prevent scroll when modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = 'unset'; };
@@ -632,10 +619,8 @@ const TechModal = ({ tech, onClose, lang, isAr, t }) => {
     const minSwipeDistance = 50;
 
     if (distance > minSwipeDistance) {
-      // Swipe Left
       isAr ? prevImage() : nextImage();
     } else if (distance < -minSwipeDistance) {
-      // Swipe Right
       isAr ? nextImage() : prevImage();
     }
   };
@@ -654,7 +639,7 @@ const TechModal = ({ tech, onClose, lang, isAr, t }) => {
           <X className="w-5 h-5" />
         </button>
 
-        {/* Media Section (Left) */}
+        {/* Media Section */}
         <div className="w-full md:w-1/2 h-64 md:h-auto bg-black relative flex flex-col group">
           {activeTab === 'info' ? (
             <div className="relative w-full h-full flex-1">
@@ -744,7 +729,7 @@ const TechModal = ({ tech, onClose, lang, isAr, t }) => {
           )}
         </div>
 
-        {/* Content Section (Right) */}
+        {/* Content Section */}
         <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col overflow-y-auto custom-scrollbar">
           <div className="flex gap-2 mb-6 border-b border-white/10 pb-4">
             <button 
@@ -809,7 +794,7 @@ const Dashboard = ({ technologies, onClose, onAdd, onDelete, logoUrl, onLogoUplo
     title: '',
     description: '',
     dimensions: '',
-    galleryInput: '', // comma separated URLs
+    galleryInput: '',
     video: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -942,7 +927,7 @@ const Dashboard = ({ technologies, onClose, onAdd, onDelete, logoUrl, onLogoUplo
             </form>
           </div>
 
-          {/* Manage Existing */}
+          {/* Manage Technologies */}
           <div className="w-full md:w-1/2 bg-black/30 p-6 overflow-y-auto custom-scrollbar">
             <h3 className="text-lg font-semibold mb-6 text-gray-300">{t[lang].activeTech} ({technologies.length})</h3>
             
@@ -983,7 +968,7 @@ const Dashboard = ({ technologies, onClose, onAdd, onDelete, logoUrl, onLogoUplo
         </div>
       </div>
       
-      {/* Global styles for custom scrollbar hidden in normal views but active in modals */}
+      {/* Scrollbar Styles */}
       <style dangerouslySetInnerHTML={{__html: `
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
