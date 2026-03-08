@@ -5,27 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MACAN | Interactive Technologies</title>
 
-  <!-- 1. Tailwind CSS (Direct Browser Version) -->
+  <!-- 1. Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { theme: { extend: {} } }</script>
 
   <!-- 2. Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
 
-  <!-- 3. Three.js for 3D Background -->
+  <!-- 3. Three.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
   <!-- 4. Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- 5. Firebase (Compat version for pure HTML files) -->
+  <!-- 5. Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
 
-  <!-- 6. React & Babel (Allows running React without Node.js!) -->
+  <!-- 6. React & Babel -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -43,25 +43,28 @@
 <body>
   <div id="root"></div>
 
-  <!-- MAIN REACT APPLICATION CODE -->
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
     // --- FIREBASE CONFIGURATION ---
-    // (Replace these when you are ready to link a real database, otherwise it works locally!)
-const firebaseConfig = {
-  apiKey: "AIzaSyD_u-i7KHXej4ckTNnGbt7C7CmknZT475o",
-  authDomain: "macanprofile.firebaseapp.com",
-  projectId: "macanprofile",
-  storageBucket: "macanprofile.firebasestorage.app",
-  messagingSenderId: "439044743929",
-  appId: "1:439044743929:web:47356eaa346b86bdcc7828",
-  measurementId: "G-MSR5NXP9R0"
-};
+    // Replace with your actual config from Firebase Console -> Project Settings
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_u-i7KHXej4ckTNnGbt7C7CmknZT475o",
+      authDomain: "macanprofile.firebaseapp.com",
+      projectId: "macanprofile",
+      storageBucket: "macanprofile.firebasestorage.app",
+      messagingSenderId: "439044743929",
+      appId: "1:439044743929:web:47356eaa346b86bdcc7828"
+    };
 
-    // Safely initialize Firebase if keys are provided
+    let isFirebaseActive = false;
     if (firebaseConfig.apiKey !== "YOUR_API_KEY" && !firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
+      try {
+        firebase.initializeApp(firebaseConfig);
+        isFirebaseActive = true;
+      } catch (err) {
+        console.warn("Firebase Init Failed", err);
+      }
     }
 
     // --- ICON HELPER ---
@@ -71,9 +74,7 @@ const firebaseConfig = {
         if (elRef.current && lucide.icons[icon]) {
           elRef.current.innerHTML = '';
           const svg = lucide.createElement(lucide.icons[icon]);
-          if(className) {
-             className.split(' ').forEach(c => { if(c.trim()) svg.classList.add(c.trim()); });
-          }
+          if(className) className.split(' ').forEach(c => { if(c.trim()) svg.classList.add(c.trim()); });
           elRef.current.appendChild(svg);
         }
       }, [icon, className]);
@@ -82,8 +83,8 @@ const firebaseConfig = {
 
     // --- TRANSLATIONS & MOCK DATA ---
     const t = {
-      en: { subtitle: "Interactive Technologies", elevate1: "Elevate Your", elevate2: "Event Experience.", desc: "Explore our cutting-edge interactive technologies designed to captivate audiences and create unforgettable moments.", expTech: "Experience Tech", details: "Details", gallery: "Gallery", video: "Video", techDesc: "Description", dimensions: "Technical Dimensions", request: "Request this Technology", noImg: "No images available", noVid: "No video available", admin: "| Secret Admin Dashboard", addTech: "Add New Technology", activeTech: "Active Technologies", noTech: "No technologies listed yet. Add one from the left.", pubTech: "Publish Technology", publishing: "Translating & Publishing...", techName: "Technology Name *", techDescForm: "Description *", techDimForm: "Dimensions / Footprint", techGalForm: "Gallery Image URLs (Comma separated)", techVidForm: "Video URL (MP4)", uploadLogo: "Upload Logo", changeLogo: "Change Logo", upload3DLogo: "Upload 3D Logo (.glb)", change3DLogo: "Change 3D Logo", uploading: "Uploading..." },
-      ar: { subtitle: "التقنيات التفاعلية", elevate1: "ارتقِ", elevate2: "بتجربة فعاليتك.", desc: "استكشف تقنياتنا التفاعلية المتطورة المصممة لجذب الجماهير وخلق لحظات لا تُنسى.", expTech: "تجربة التقنية", details: "التفاصيل", gallery: "المعرض", video: "الفيديو", techDesc: "الوصف", dimensions: "الأبعاد التقنية", request: "اطلب هذه التقنية", noImg: "لا توجد صور متاحة", noVid: "لا يوجد فيديو متاح", admin: "| لوحة تحكم الإدارة السرية", addTech: "إضافة تقنية جديدة", activeTech: "التقنيات النشطة", noTech: "لم يتم إدراج تقنيات بعد. أضف واحدة من القائمة.", pubTech: "نشر التقنية", publishing: "جاري الترجمة والنشر...", techName: "اسم التقنية * (بالإنجليزية)", techDescForm: "الوصف * (بالإنجليزية)", techDimForm: "الأبعاد / المساحة (بالإنجليزية)", techGalForm: "روابط صور المعرض (مفصولة بفواصل)", techVidForm: "رابط الفيديو (MP4)", uploadLogo: "رفع الشعار", changeLogo: "تغيير الشعار", upload3DLogo: "رفع شعار 3D (.glb)", change3DLogo: "تغيير شعار 3D", uploading: "جاري الرفع..." }
+      en: { subtitle: "Interactive Technologies", elevate1: "Elevate Your", elevate2: "Event Experience.", desc: "Explore our cutting-edge interactive technologies designed to captivate audiences and create unforgettable moments.", expTech: "Experience Tech", details: "Details", gallery: "Gallery", video: "Video", techDesc: "Description", dimensions: "Technical Dimensions", request: "Request this Technology", noImg: "No images available", noVid: "No video available", admin: "| Secret Admin Dashboard", addTech: "Add New Technology", activeTech: "Active Technologies", noTech: "No technologies listed yet. Add one from the left.", pubTech: "Publish Technology", publishing: "Translating & Publishing...", techName: "Technology Name *", techDescForm: "Description *", techDimForm: "Dimensions / Footprint", techGalForm: "Gallery Image URLs (Comma separated)", techVidForm: "Video URL (MP4)", uploadLogo: "Upload Logo", changeLogo: "Change Logo", upload3DLogo: "Upload 3D Logo (.glb)", change3DLogo: "Change 3D Logo", uploading: "Uploading...", offlineMode: "Offline Mode (Not Saving)" },
+      ar: { subtitle: "التقنيات التفاعلية", elevate1: "ارتقِ", elevate2: "بتجربة فعاليتك.", desc: "استكشف تقنياتنا التفاعلية المتطورة المصممة لجذب الجماهير وخلق لحظات لا تُنسى.", expTech: "تجربة التقنية", details: "التفاصيل", gallery: "المعرض", video: "الفيديو", techDesc: "الوصف", dimensions: "الأبعاد التقنية", request: "اطلب هذه التقنية", noImg: "لا توجد صور متاحة", noVid: "لا يوجد فيديو متاح", admin: "| لوحة تحكم الإدارة السرية", addTech: "إضافة تقنية جديدة", activeTech: "التقنيات النشطة", noTech: "لم يتم إدراج تقنيات بعد. أضف واحدة من القائمة.", pubTech: "نشر التقنية", publishing: "جاري الترجمة والنشر...", techName: "اسم التقنية * (بالإنجليزية)", techDescForm: "الوصف * (بالإنجليزية)", techDimForm: "الأبعاد / المساحة (بالإنجليزية)", techGalForm: "روابط صور المعرض (مفصولة بفواصل)", techVidForm: "رابط الفيديو (MP4)", uploadLogo: "رفع الشعار", changeLogo: "تغيير الشعار", upload3DLogo: "رفع شعار 3D (.glb)", change3DLogo: "تغيير شعار 3D", uploading: "جاري الرفع...", offlineMode: "وضع عدم الاتصال (لن يتم الحفظ)" }
     };
 
     const translateText = async (text) => {
@@ -306,7 +307,7 @@ const firebaseConfig = {
       );
     };
 
-    const Dashboard = ({ technologies, onClose, onAdd, onDelete, logoUrl, onLogoUpload, glbUrl, onGlbUpload, lang, isAr, t, isUploading }) => {
+    const Dashboard = ({ technologies, onClose, onAdd, onDelete, logoUrl, onLogoUpload, glbUrl, onGlbUpload, lang, isAr, t, isUploading, dbError }) => {
       const [formData, setFormData] = useState({ title: '', description: '', dimensions: '', galleryInput: '', video: '' });
       const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -331,6 +332,15 @@ const firebaseConfig = {
       return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in" dir={isAr ? "rtl" : "ltr"}>
           <div className="w-full max-w-5xl h-[85vh] bg-gray-900 border border-cyan-500/30 rounded-2xl shadow-[0_0_50px_rgba(34,211,238,0.1)] flex flex-col overflow-hidden relative">
+            
+            {/* Offline Warning Banner */}
+            {dbError && (
+              <div className="bg-red-500/20 border-b border-red-500/50 text-red-200 text-sm px-6 py-2 flex items-center gap-2">
+                <Icon icon="Info" className="w-4 h-4" /> 
+                {t[lang].offlineMode} - Firebase Authentication/Database is not enabled. Additions will disappear on refresh.
+              </div>
+            )}
+
             <div className="flex justify-between items-center p-6 border-b border-white/10 bg-black/50">
               <div className="flex items-center gap-3">
                 <Icon icon="Settings" className="w-6 h-6 text-cyan-400 animate-spin-slow" />
@@ -386,6 +396,7 @@ const firebaseConfig = {
 
     function App() {
       const [user, setUser] = useState(null);
+      const [dbError, setDbError] = useState(false);
       const [technologies, setTechnologies] = useState(initialTechnologies);
       const [selectedTech, setSelectedTech] = useState(null);
       const [isDashboardOpen, setIsDashboardOpen] = useState(false);
@@ -397,33 +408,56 @@ const firebaseConfig = {
       
       const isAr = lang === 'ar';
       
+      // Initialize Firebase Auth Safely
       useEffect(() => {
-        if (!window.firebase || !firebase.apps.length) return;
-        firebase.auth().signInAnonymously().catch(() => {});
+        if (!isFirebaseActive || !window.firebase) {
+          setDbError(true);
+          return;
+        }
+        
+        firebase.auth().signInAnonymously().catch((err) => {
+          console.warn("Firebase Auth Error (Needs Activation in Console):", err);
+          setDbError(true);
+        });
+
         const unsubscribe = firebase.auth().onAuthStateChanged(setUser);
         return () => unsubscribe();
       }, []);
 
+      // Fetch Database Safely
       useEffect(() => {
-        if (!user || !firebase.apps.length) return;
-        const configRef = firebase.firestore().collection('public_config').doc('macan-app');
-        const unsubscribe = configRef.onSnapshot((docSnap) => {
-          if (docSnap.exists) {
-            const data = docSnap.data();
-            if (data.technologies) setTechnologies(data.technologies);
-            if (data.logoUrl !== undefined) setLogoUrl(data.logoUrl);
-            if (data.glbLogoUrl !== undefined) setGlbLogoUrl(data.glbLogoUrl);
-          } else {
-            configRef.set({ technologies: initialTechnologies, logoUrl: null, glbLogoUrl: null });
-          }
-        });
-        return () => unsubscribe();
-      }, [user]);
+        if (!user || dbError || !isFirebaseActive) return;
+
+        try {
+          const configRef = firebase.firestore().collection('public_config').doc('macan-app');
+          const unsubscribe = configRef.onSnapshot((docSnap) => {
+            if (docSnap.exists) {
+              const data = docSnap.data();
+              if (data.technologies) setTechnologies(data.technologies);
+              if (data.logoUrl !== undefined) setLogoUrl(data.logoUrl);
+              if (data.glbLogoUrl !== undefined) setGlbLogoUrl(data.glbLogoUrl);
+            } else {
+              configRef.set({ technologies: initialTechnologies, logoUrl: null, glbLogoUrl: null });
+            }
+          }, (err) => {
+            console.warn("Firestore Listen Error:", err);
+            setDbError(true);
+          });
+          return () => unsubscribe();
+        } catch (err) {
+          console.warn("Database init error:", err);
+          setDbError(true);
+        }
+      }, [user, dbError]);
 
       const updateConfig = async (updates) => {
-        if (!user || !firebase.apps.length) return;
-        try { await firebase.firestore().collection('public_config').doc('macan-app').set(updates, { merge: true }); } 
-        catch(err) { console.error(err); }
+        if (!user || dbError || !isFirebaseActive) return; // Prevent crashing if DB is broken
+        try { 
+          await firebase.firestore().collection('public_config').doc('macan-app').set(updates, { merge: true }); 
+        } catch(err) { 
+          console.error("Config save failed:", err); 
+          setDbError(true);
+        }
       };
 
       useEffect(() => {
@@ -434,10 +468,11 @@ const firebaseConfig = {
         }
       }, [clickCount]);
 
+      // State is always updated locally so the UI updates, even if Database fails
       const handleAddTech = async (newTech) => {
         const updatedTechs = [{ ...newTech, id: Date.now() }, ...technologies];
-        setTechnologies(updatedTechs);
-        await updateConfig({ technologies: updatedTechs });
+        setTechnologies(updatedTechs); 
+        await updateConfig({ technologies: updatedTechs }); 
         setIsDashboardOpen(false);
       };
 
@@ -451,7 +486,8 @@ const firebaseConfig = {
         const file = e.target.files[0];
         if (!file) return;
 
-        if (!firebase.apps.length || !user) {
+        // Fallback: If DB is broken, just show the uploaded image locally for the session
+        if (dbError || !isFirebaseActive || !user) {
            const localUrl = URL.createObjectURL(file);
            if (type === 'logo') setLogoUrl(localUrl);
            else if (type === 'glb') setGlbLogoUrl(localUrl);
@@ -465,7 +501,10 @@ const firebaseConfig = {
           const url = await fileRef.getDownloadURL();
           if (type === 'logo') { setLogoUrl(url); await updateConfig({ logoUrl: url }); }
           else if (type === 'glb') { setGlbLogoUrl(url); await updateConfig({ glbLogoUrl: url }); }
-        } catch (err) { console.error("Upload error:", err); } 
+        } catch (err) { 
+          console.error("Upload error:", err); 
+          setDbError(true);
+        } 
         finally { setIsUploading(false); }
       };
 
@@ -535,7 +574,7 @@ const firebaseConfig = {
             <Dashboard 
               technologies={technologies} onClose={() => setIsDashboardOpen(false)} onAdd={handleAddTech} onDelete={handleDeleteTech} 
               logoUrl={logoUrl} onLogoUpload={(e) => handleFileUpload(e, 'logo')} glbUrl={glbLogoUrl} onGlbUpload={(e) => handleFileUpload(e, 'glb')} 
-              lang={lang} isAr={isAr} t={t} isUploading={isUploading}
+              lang={lang} isAr={isAr} t={t} isUploading={isUploading} dbError={dbError}
             />
           )}
         </div>
